@@ -180,9 +180,6 @@ Proyecto Final de Carrera - Ingeniería Electrónica
 
 <script>
 
-//=====================================
-// TU URL
-//=====================================
 const backend =
 "https://script.google.com/macros/s/AKfycbz-hSedZsjYrdjzfInutmnBZA3tNpvvfniwAhxdDQohvm_7EM7Av2cXGICDAXIOOWcB/exec";
 
@@ -219,13 +216,11 @@ circle:false,
 marker:false,
 circlemarker:false
 },
-edit:{
-featureGroup:drawnItems
-}
+edit:{ featureGroup: drawnItems }
 });
 
 //=====================================
-// CERCO NUEVO
+// NUEVO CERCO
 //=====================================
 mapa.on(L.Draw.Event.CREATED,function(e){
 
@@ -235,22 +230,10 @@ drawnItems.addLayer(e.layer);
 });
 
 //=====================================
-// ACTIVAR EDICION
+// LOCAL CERCO
 //=====================================
-function activarEdicion(){
+function cargarCercoLocal(){
 
-mapa.addControl(drawControl);
-
-alert("Dibuje el nuevo perímetro");
-
-}
-
-//=====================================
-// CARGAR TODO
-//=====================================
-//=====================================
-// CARGAR CERCO LOCAL
-//=====================================
 let local = localStorage.getItem("cerco");
 
 if(local){
@@ -266,15 +249,32 @@ fillOpacity:0.08
 
 drawnItems.addLayer(poly);
 
-}function cargarTodo(){
-
-cargarPanel();
-cargarCerco();
+}
 
 }
 
 //=====================================
-// PANEL SUPERIOR
+// ACTIVAR EDICION
+//=====================================
+function activarEdicion(){
+
+mapa.addControl(drawControl);
+alert("Dibuje el nuevo perímetro");
+
+}
+
+//=====================================
+// CARGAR TODO
+//=====================================
+function cargarTodo(){
+
+cargarCerco();
+cargarPanel();
+
+}
+
+//=====================================
+// PANEL
 //=====================================
 function cargarPanel(){
 
@@ -297,7 +297,6 @@ data.cruces;
 document.getElementById("dist").innerHTML =
 data.distancia + " m";
 
-// limpiar historial
 historialLayer.clearLayers();
 
 if(data.historial.length > 0){
@@ -309,7 +308,6 @@ mapa.setView(
 [ultimo.lat, ultimo.lng],17
 );
 
-// línea recorrido
 let linea = [];
 
 data.historial.forEach(p=>{
@@ -322,8 +320,7 @@ puntoDentroPoligono(
 obtenerCercoActual()
 );
 
-let color =
-adentro ? "blue" : "red";
+let color = adentro ? "blue" : "red";
 
 L.circleMarker(
 [p.lat,p.lng],
@@ -336,7 +333,6 @@ fillOpacity:1
 
 });
 
-// dibujar línea
 L.polyline(linea,{
 weight:3,
 opacity:0.6
@@ -349,7 +345,7 @@ opacity:0.6
 }
 
 //=====================================
-// CARGAR CERCO
+// LEER CERCO BACKEND
 //=====================================
 function cargarCerco(){
 
@@ -357,12 +353,16 @@ fetch(backend + "?leerCerco=1")
 .then(r=>r.json())
 .then(data=>{
 
-drawnItems.clearLayers();
-
 if(data.length>2){
 
-let poly =
-L.polygon(data,{
+localStorage.setItem(
+"cerco",
+JSON.stringify(data)
+);
+
+drawnItems.clearLayers();
+
+let poly = L.polygon(data,{
 color:"green",
 fillOpacity:0.08
 });
@@ -370,6 +370,11 @@ fillOpacity:0.08
 drawnItems.addLayer(poly);
 
 }
+
+})
+.catch(err=>{
+
+cargarCercoLocal();
 
 });
 
@@ -381,7 +386,7 @@ drawnItems.addLayer(poly);
 function guardarCerco(){
 
 if(drawnItems.getLayers().length==0){
-alert("No hay cerco dibujado");
+alert("No hay cerco");
 return;
 }
 
@@ -390,17 +395,30 @@ drawnItems.getLayers()[0];
 
 let coords =
 capa.getLatLngs()[0];
+
+let texto = "";
+
+coords.forEach(p=>{
+
+texto +=
+p.lat.toFixed(6) +
+"," +
+p.lng.toFixed(6) +
+";";
+
+});
+
 // guardar local
 localStorage.setItem(
 "cerco",
 JSON.stringify(coords)
 );
+
+// guardar nube
 fetch(
 backend +
-"?guardarCerco=" +
-encodeURIComponent(
-JSON.stringify(coords)
-)
+"?cerco=" +
+encodeURIComponent(texto)
 )
 .then(r=>r.text())
 .then(t=>{
@@ -412,17 +430,16 @@ alert("Cerco guardado");
 }
 
 //=====================================
-// OBTENER CERCO
+// CERCO ACTUAL
 //=====================================
 function obtenerCercoActual(){
 
 if(drawnItems.getLayers().length==0)
 return [];
 
-let capa =
-drawnItems.getLayers()[0];
-
-return capa.getLatLngs()[0];
+return drawnItems
+.getLayers()[0]
+.getLatLngs()[0];
 
 }
 
@@ -431,31 +448,26 @@ return capa.getLatLngs()[0];
 //=====================================
 function puntoDentroPoligono(point, vs){
 
+if(vs.length<3) return true;
+
 let x = point[0];
 let y = point[1];
 
 let inside = false;
 
-for(let i=0,j=vs.length-1;
-i<vs.length;
-j=i++){
+for(let i=0,j=vs.length-1;i<vs.length;j=i++){
 
 let xi = vs[i].lat;
 let yi = vs[i].lng;
-
 let xj = vs[j].lat;
 let yj = vs[j].lng;
 
 let intersect =
-((yi>y)!=(yj>y))
-&&
-(x <
-(xj-xi)*
-(y-yi)/
-(yj-yi)+xi);
+((yi>y)!=(yj>y)) &&
+(x < (xj-xi)*(y-yi)/(yj-yi)+xi);
 
-if(intersect)
-inside=!inside;
+if(intersect) inside=!inside;
+
 }
 
 return inside;
@@ -463,9 +475,9 @@ return inside;
 }
 
 //=====================================
+cargarCercoLocal();
 cargarTodo();
 
-// actualiza cada 30 seg
 setInterval(cargarTodo,30000);
 
 </script>
