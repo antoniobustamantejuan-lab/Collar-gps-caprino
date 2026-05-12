@@ -1,408 +1,182 @@
 <!DOCTYPE html>
-<html lang="es">
+<html>
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>Collar GPS Caprino</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css"/>
 
 <style>
-*{
+body{
+font-family:Arial;
 margin:0;
 padding:0;
-box-sizing:border-box;
 }
 
-body{
-font-family:Arial, Helvetica, sans-serif;
-background:#eef2f7;
-color:#111827;
+#map{
+height:75vh;
+width:100%;
 }
 
-header{
-background:linear-gradient(135deg,#0f172a,#1e40af);
-color:white;
-padding:24px;
-text-align:center;
-font-size:30px;
-font-weight:bold;
-}
-
-.container{
-max-width:1450px;
-margin:auto;
-padding:20px;
-}
-
-.cards{
-display:grid;
-grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
-gap:15px;
-margin-bottom:20px;
-}
-
-.card,.section{
-background:white;
-padding:18px;
-border-radius:16px;
-box-shadow:0 6px 18px rgba(0,0,0,.08);
-}
-
-.card h3{
-font-size:15px;
-color:#64748b;
-margin-bottom:8px;
-}
-
-.card p{
-font-size:28px;
-font-weight:bold;
-}
-
-.section{
-margin-bottom:20px;
-}
-
-.section h2{
-margin-bottom:15px;
-font-size:22px;
-}
-
-#mapa,#mapaCerco{
-height:430px;
-border-radius:14px;
-margin-top:10px;
-}
-
-button{
-padding:12px 18px;
-border:none;
-border-radius:10px;
-background:#2563eb;
-color:white;
-cursor:pointer;
-font-size:15px;
-margin-top:15px;
-margin-right:8px;
-}
-
-button:hover{
-background:#1d4ed8;
-}
-
-.success{
-margin-top:12px;
+.panel{
 padding:10px;
-background:#dcfce7;
-color:#166534;
-border-radius:10px;
-display:none;
-font-weight:bold;
+background:#f2f2f2;
 }
 
-table{
-width:100%;
-border-collapse:collapse;
-}
-
-th,td{
-padding:12px;
-text-align:center;
-border-bottom:1px solid #e5e7eb;
-}
-
-footer{
-text-align:center;
-padding:20px;
-color:#64748b;
-}
-
-.bateria-barra{
-width:100%;
-height:14px;
-background:#e5e7eb;
-border-radius:10px;
-margin-top:10px;
-overflow:hidden;
-}
-
-.bateria-fill{
-height:100%;
-background:#22c55e;
-width:0%;
+button,input{
+padding:8px;
+margin:4px;
+font-size:16px;
 }
 </style>
 </head>
 
 <body>
 
-<header>
-Collar GPS Caprino
-</header>
+<div class="panel">
 
-<div class="container">
+<input type="date" id="fecha">
 
-<div class="cards">
+<button onclick="cargarTodo()">Ver Día</button>
 
-<div class="card">
-<h3>Batería</h3>
-<p id="bat">--%</p>
-<div class="bateria-barra">
-<div class="bateria-fill" id="barraBat"></div>
-</div>
-</div>
+<button onclick="modoEditar()">Editar Cerco</button>
 
-<div class="card">
-<h3>Última conexión</h3>
-<p style="font-size:20px;" id="hora">--</p>
-</div>
+<button onclick="guardarCerco()">Guardar Cerco</button>
 
-<div class="card">
-<h3>Cruces hoy</h3>
-<p id="cruces">--</p>
-</div>
-
-<div class="card">
-<h3>Distancia hoy</h3>
-<p id="dist">-- km</p>
-</div>
+<span id="info"></span>
 
 </div>
 
-<div class="section">
-<h2>Historial de Posiciones</h2>
-<div id="mapa"></div>
-</div>
-
-<div class="section">
-<h2>Cerco virtual</h2>
-<p>Dibuje o modifique el perímetro y presione guardar.</p>
-<div id="mapaCerco"></div>
-
-<button onclick="guardarCerco()">Guardar cerco</button>
-<button onclick="cargarCerco()">Cargar cerco actual</button>
-
-<div class="success" id="okmsg">
-Cerco guardado correctamente
-</div>
-
-</div>
-
-<div class="section">
-<h2>Datos históricos</h2>
-
-<table>
-<tr>
-<th>Fecha</th>
-<th>Latitud</th>
-<th>Longitud</th>
-</tr>
-
-<tr>
-<td id="fecha">--</td>
-<td id="lat">--</td>
-<td id="lon">--</td>
-</tr>
-
-</table>
-
-</div>
-
-</div>
-
-<footer>
-Proyecto Final de Carrera - Ingeniería Electrónica
-</footer>
+<div id="map"></div>
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
 
 <script>
 
-//========================================
-// URL NUEVA
-//========================================
-const backend = "https://script.google.com/macros/s/AKfycbyKu3ximhGQtsDZlGxzlZX9xx9cuVEXfyNcQGUpERbJa_cPtsI9yeEY54DXAadzSqc/exec";
+const URL = "https://script.google.com/macros/s/AKfycbzBW9V9DH_kya5vv0Lc1fCCSd6MDfmQsqRgWRz7Z-a0wP_4XID7WgIXk_Xzfz6xsgzO/exec";
 
-//========================================
-// MAPA POSICION
-//========================================
-var mapa = L.map('mapa').setView([-27.48,-58.83],15);
+let map = L.map('map').setView([-27.48,-58.83],15);
 
-var osm = L.tileLayer(
-'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-{maxZoom:19}
-).addTo(mapa);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+maxZoom:19
+}).addTo(map);
 
-// SATELITE
-var sat = L.tileLayer(
-'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-{maxZoom:19}
-);
+let polygon;
+let puntosCerco = [];
+let markers = [];
+let editando = false;
 
-//========================================
-// MAPA CERCO
-//========================================
-var mapaCerco = L.map('mapaCerco').setView([-27.48,-58.83],15);
-
-osm2 = L.tileLayer(
-'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-{maxZoom:19}
-).addTo(mapaCerco);
-
-sat2 = L.tileLayer(
-'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-{maxZoom:19}
-);
-
-L.control.layers(
-{"Mapa":osm2,"Satélite":sat2}
-).addTo(mapaCerco);
-
-var drawnItems = new L.FeatureGroup();
-mapaCerco.addLayer(drawnItems);
-
-var drawControl = new L.Control.Draw({
-draw:{
-polygon:true,
-polyline:false,
-rectangle:false,
-circle:false,
-marker:false,
-circlemarker:false
-},
-edit:{
-featureGroup:drawnItems
+//==================
+function cargarTodo(){
+cargarCerco();
+cargarHistorial();
 }
-});
 
-mapaCerco.addControl(drawControl);
+//==================
+function cargarCerco(){
 
-mapaCerco.on(L.Draw.Event.CREATED,function(e){
-drawnItems.clearLayers();
-drawnItems.addLayer(e.layer);
-});
-
-//========================================
-// CARGAR DATOS AUTOMATICO
-//========================================
-function cargarDatos(){
-
-fetch(backend)
+fetch(URL + "?leerCerco=1")
 .then(r=>r.json())
 .then(data=>{
 
-document.getElementById("bat").innerHTML = data.bateria + "%";
-document.getElementById("hora").innerHTML = data.hora;
-document.getElementById("cruces").innerHTML = data.cruces;
-document.getElementById("dist").innerHTML = data.distancia + " km";
+puntosCerco = data;
 
-document.getElementById("fecha").innerHTML = data.fecha;
-document.getElementById("lat").innerHTML = data.lat;
-document.getElementById("lon").innerHTML = data.lon;
+if(polygon) map.removeLayer(polygon);
 
-document.getElementById("barraBat").style.width = data.bateria + "%";
-
-var lat = parseFloat(data.lat);
-var lon = parseFloat(data.lon);
-
-mapa.eachLayer(function(layer){
-if(layer instanceof L.Marker){
-mapa.removeLayer(layer);
-}
-});
-
-L.marker([lat,lon]).addTo(mapa);
-mapa.setView([lat,lon],17);
+polygon = L.polygon(puntosCerco,{
+color:'green',
+fillOpacity:0.1
+}).addTo(map);
 
 });
-
 }
 
-cargarDatos();
-setInterval(cargarDatos,30000);
+//==================
+function cargarHistorial(){
 
-//========================================
-// GUARDAR CERCO
-//========================================
-function guardarCerco(){
+markers.forEach(m=>map.removeLayer(m));
+markers=[];
 
-if(drawnItems.getLayers().length==0){
-alert("Debe dibujar un perímetro.");
-return;
-}
+let fecha = document.getElementById("fecha").value;
 
-var capa = drawnItems.getLayers()[0];
-var coords = capa.getLatLngs()[0];
-
-var texto = "";
-
-coords.forEach(p=>{
-texto += p.lat.toFixed(6)+","+p.lng.toFixed(6)+";";
-});
-
-fetch(backend + "?cerco=" + encodeURIComponent(texto),{
-method:"GET",
-mode:"no-cors"
-})
-.then(()=>{
-
-document.getElementById("okmsg").style.display="block";
-
-setTimeout(()=>{
-document.getElementById("okmsg").style.display="none";
-},2500);
-
-});
-
-}
-
-//========================================
-// CARGAR CERCO GUARDADO
-//========================================
-function cargarCerco(){
-
-fetch(backend + "?leerCerco=1")
-.then(r=>r.text())
+fetch(URL + "?historial=" + fecha)
+.then(r=>r.json())
 .then(data=>{
 
-if(data=="SIN CERCO") return;
+let salidas = 0;
 
-drawnItems.clearLayers();
+data.forEach(p=>{
 
-var partes = data.split(";");
+let color = (p.estado=="Fuera") ? "red" : "blue";
 
-var puntos = [];
+if(p.estado=="Fuera") salidas++;
 
-partes.forEach(p=>{
+let marker = L.circleMarker([p.lat,p.lng],{
+radius:6,
+color:color,
+fillOpacity:1
+}).addTo(map);
 
-if(p.trim()!=""){
+marker.bindPopup(
+"Hora: "+p.hora+
+"<br>Batería: "+p.bateria+"%"
+);
 
-var xy = p.split(",");
-
-puntos.push([
-parseFloat(xy[0]),
-parseFloat(xy[1])
-]);
-
-}
-
-});
-
-var pol = L.polygon(puntos,{color:"red"});
-drawnItems.addLayer(pol);
-
-mapaCerco.fitBounds(pol.getBounds());
+markers.push(marker);
 
 });
 
+document.getElementById("info").innerHTML =
+"Salidas: " + salidas;
+
+});
 }
 
-// cargar cerco al abrir
-cargarCerco();
+//==================
+function modoEditar(){
+
+editando=true;
+puntosCerco=[];
+
+if(polygon) map.removeLayer(polygon);
+
+alert("Toque el mapa para crear puntos");
+}
+
+//==================
+map.on('click',function(e){
+
+if(!editando) return;
+
+puntosCerco.push({
+lat:e.latlng.lat,
+lng:e.latlng.lng
+});
+
+if(polygon) map.removeLayer(polygon);
+
+polygon = L.polygon(puntosCerco,{
+color:'orange'
+}).addTo(map);
+
+});
+
+//==================
+function guardarCerco(){
+
+fetch(URL + "?guardarCerco=" +
+encodeURIComponent(JSON.stringify(puntosCerco)))
+.then(r=>r.text())
+.then(t=>{
+
+alert("Cerco guardado");
+editando=false;
+
+});
+
+}
+
+//==================
+cargarTodo();
 
 </script>
 
