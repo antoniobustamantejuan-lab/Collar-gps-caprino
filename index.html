@@ -164,6 +164,7 @@ Editar cerco
 
 <button onclick="guardarCerco()">
 Guardar cerco
+  
 </button>
 
 </div>
@@ -251,7 +252,25 @@ alert("Dibuje el nuevo perímetro");
 //=====================================
 // CARGAR TODO
 //=====================================
-function cargarTodo(){
+//=====================================
+// CARGAR CERCO LOCAL
+//=====================================
+let local = localStorage.getItem("cerco");
+
+if(local){
+
+let data = JSON.parse(local);
+
+drawnItems.clearLayers();
+
+let poly = L.polygon(data,{
+color:"green",
+fillOpacity:0.08
+});
+
+drawnItems.addLayer(poly);
+
+}function cargarTodo(){
 
 cargarPanel();
 cargarCerco();
@@ -375,7 +394,11 @@ drawnItems.getLayers()[0];
 
 let coords =
 capa.getLatLngs()[0];
-
+// guardar local
+localStorage.setItem(
+"cerco",
+JSON.stringify(coords)
+);
 fetch(
 backend +
 "?guardarCerco=" +
