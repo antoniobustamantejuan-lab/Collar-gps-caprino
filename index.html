@@ -1,56 +1,110 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Collar GPS Caprino</title>
 
-<link rel="stylesheet"
-href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css"/>
 
 <style>
 
-body{
+*{
 margin:0;
-font-family:Arial;
-background:#f5f5f5;
+padding:0;
+box-sizing:border-box;
 }
 
-.top{
-padding:10px;
+body{
+font-family:Arial, Helvetica, sans-serif;
+background:#f1f5f9;
+color:#111827;
+}
+
+header{
+background:linear-gradient(135deg,#0f172a,#1e3a8a);
+color:white;
+padding:22px;
+text-align:center;
+font-size:28px;
+font-weight:bold;
+}
+
+.container{
+max-width:1400px;
+margin:auto;
+padding:18px;
+}
+
+.cards{
 display:grid;
-grid-template-columns:1fr 1fr;
-gap:8px;
+grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+gap:15px;
+margin-bottom:20px;
 }
 
-.card{
+.card,.section{
 background:white;
-padding:12px;
-border-radius:12px;
-box-shadow:0 2px 6px rgba(0,0,0,.15);
+padding:18px;
+border-radius:16px;
+box-shadow:0 4px 14px rgba(0,0,0,.08);
+}
+
+.card h3{
 font-size:15px;
+color:#64748b;
+margin-bottom:8px;
+}
+
+.card p{
+font-size:28px;
+font-weight:bold;
+}
+
+.section{
+margin-bottom:20px;
+}
+
+.section h2{
+font-size:22px;
+margin-bottom:15px;
+}
+
+#mapa{
+height:520px;
+border-radius:14px;
+margin-top:10px;
 }
 
 .controls{
-padding:10px;
 display:flex;
-gap:8px;
+gap:10px;
 flex-wrap:wrap;
+margin-top:15px;
 }
 
 button,input{
-padding:10px;
-font-size:15px;
+padding:12px 18px;
 border:none;
-border-radius:8px;
+border-radius:10px;
+font-size:15px;
 }
 
 button{
-background:#1e88e5;
+background:#2563eb;
 color:white;
+cursor:pointer;
 }
 
-#map{
-height:65vh;
-width:100%;
+button:hover{
+background:#1d4ed8;
+}
+
+footer{
+text-align:center;
+padding:20px;
+color:#64748b;
 }
 
 </style>
@@ -58,214 +112,342 @@ width:100%;
 
 <body>
 
-<div class="top">
+<header>
+Collar GPS Caprino
+</header>
 
-<div class="card" id="bat">🔋 Batería: --%</div>
-<div class="card" id="ult">📶 Última conexión: --</div>
-<div class="card" id="cru">🚨 Cruces: --</div>
-<div class="card" id="dis">📏 Distancia: -- m</div>
+<div class="container">
+
+<!-- TARJETAS -->
+<div class="cards">
+
+<div class="card">
+<h3>Batería</h3>
+<p id="bat">--%</p>
+</div>
+
+<div class="card">
+<h3>Última conexión</h3>
+<p style="font-size:18px;" id="hora">--</p>
+</div>
+
+<div class="card">
+<h3>Cruces hoy</h3>
+<p id="cruces">--</p>
+</div>
+
+<div class="card">
+<h3>Distancia hoy</h3>
+<p id="dist">-- m</p>
+</div>
 
 </div>
+
+<!-- MAPA -->
+<div class="section">
+
+<h2>Mapa General del Sistema</h2>
+
+<p>
+Cerco virtual + historial diario + posiciones dentro/fuera.
+</p>
 
 <div class="controls">
+
 <input type="date" id="fecha">
-<button onclick="cargar()">Actualizar</button>
-<button onclick="editarCerco()">Editar Cerco</button>
-<button onclick="guardarCerco()">Guardar Cerco</button>
+
+<button onclick="cargarTodo()">Actualizar</button>
+
+<button onclick="activarEdicion()">
+Editar cerco
+</button>
+
+<button onclick="guardarCerco()">
+Guardar cerco
+</button>
+
 </div>
 
-<div id="map"></div>
+<div id="mapa"></div>
+
+</div>
+
+</div>
+
+<footer>
+Proyecto Final de Carrera - Ingeniería Electrónica
+</footer>
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
 
 <script>
 
-const URL =
-"https://script.google.com/macros/s/AKfycbzP3k3AVzGJ5oh8TPJ66zytS8wllx2c-qaZ-7DuXBlXYAQJDeNOzFD7cBUF51E02e0/exec";
+//=====================================
+// TU URL
+//=====================================
+const backend =
+"https://script.google.com/macros/s/AKfycbz-hSedZsjYrdjzfInutmnBZA3tNpvvfniwAhxdDQohvm_7EM7Av2cXGICDAXIOOWcB/exec";
 
-let map = L.map('map').setView([-27.48,-58.83],16);
+//=====================================
+// FECHA HOY
+//=====================================
+document.getElementById("fecha").value =
+new Date().toISOString().split("T")[0];
+
+//=====================================
+// MAPA
+//=====================================
+var mapa = L.map('mapa').setView([-27.48,-58.83],16);
 
 L.tileLayer(
 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
 {maxZoom:19}
-).addTo(map);
+).addTo(mapa);
 
-let polygon;
-let cerco = [];
-let markers = [];
-let editando = false;
+//=====================================
+// CAPAS
+//=====================================
+var drawnItems = new L.FeatureGroup();
+mapa.addLayer(drawnItems);
 
-//========================
-// FECHA HOY
-//========================
-document.getElementById("fecha").value =
-new Date().toISOString().split("T")[0];
+var historialLayer = L.layerGroup().addTo(mapa);
 
-//========================
-// CARGAR TODO
-//========================
-function cargar(){
-cargarCerco();
-cargarPanel();
+var drawControl = new L.Control.Draw({
+draw:{
+polygon:true,
+polyline:false,
+rectangle:false,
+circle:false,
+marker:false,
+circlemarker:false
+},
+edit:{
+featureGroup:drawnItems
 }
+});
 
-//========================
-// CARGAR CERCO
-//========================
-function cargarCerco(){
+//=====================================
+// CERCO NUEVO
+//=====================================
+mapa.on(L.Draw.Event.CREATED,function(e){
 
-fetch(URL + "?leerCerco=1")
-.then(r=>r.json())
-.then(data=>{
-
-cerco = data;
-
-if(polygon) map.removeLayer(polygon);
-
-polygon = L.polygon(cerco,{
-color:"green",
-fillOpacity:0.08
-}).addTo(map);
+drawnItems.clearLayers();
+drawnItems.addLayer(e.layer);
 
 });
 
+//=====================================
+// ACTIVAR EDICION
+//=====================================
+function activarEdicion(){
+
+mapa.addControl(drawControl);
+
+alert("Dibuje el nuevo perímetro");
+
 }
 
-//========================
-// PANEL + HISTORIAL
-//========================
+//=====================================
+// CARGAR TODO
+//=====================================
+function cargarTodo(){
+
+cargarPanel();
+cargarCerco();
+
+}
+
+//=====================================
+// PANEL SUPERIOR
+//=====================================
 function cargarPanel(){
 
-markers.forEach(m=>map.removeLayer(m));
-markers=[];
+let fecha =
+document.getElementById("fecha").value;
 
-let fecha = document.getElementById("fecha").value;
-
-fetch(URL + "?panel=" + fecha)
+fetch(backend + "?panel=" + fecha)
 .then(r=>r.json())
 .then(data=>{
 
 document.getElementById("bat").innerHTML =
-"🔋 Batería: " + data.bateria + "%";
+data.bateria + "%";
 
-document.getElementById("ult").innerHTML =
-"📶 Última conexión: " + data.ultima;
+document.getElementById("hora").innerHTML =
+data.ultima;
 
-document.getElementById("cru").innerHTML =
-"🚨 Cruces: " + data.cruces;
+document.getElementById("cruces").innerHTML =
+data.cruces;
 
-document.getElementById("dis").innerHTML =
-"📏 Distancia: " + data.distancia + " m";
+document.getElementById("dist").innerHTML =
+data.distancia + " m";
 
-if(data.historial.length>0){
+// limpiar historial
+historialLayer.clearLayers();
+
+if(data.historial.length > 0){
 
 let ultimo =
 data.historial[data.historial.length-1];
 
-map.setView([ultimo.lat, ultimo.lng],17);
+mapa.setView(
+[ultimo.lat, ultimo.lng],17
+);
+
+// línea recorrido
+let linea = [];
 
 data.historial.forEach(p=>{
 
+linea.push([p.lat,p.lng]);
+
 let adentro =
-pointInPolygon([p.lat,p.lng],cerco);
+puntoDentroPoligono(
+[p.lat,p.lng],
+obtenerCercoActual()
+);
 
-let color = adentro ? "blue" : "red";
+let color =
+adentro ? "blue" : "red";
 
-let mk = L.circleMarker(
+L.circleMarker(
 [p.lat,p.lng],
 {
 radius:6,
 color:color,
 fillOpacity:1
-}).addTo(map);
+}
+).addTo(historialLayer);
 
-markers.push(mk);
+});
+
+// dibujar línea
+L.polyline(linea,{
+weight:3,
+opacity:0.6
+}).addTo(historialLayer);
+
+}
 
 });
 
 }
 
+//=====================================
+// CARGAR CERCO
+//=====================================
+function cargarCerco(){
+
+fetch(backend + "?leerCerco=1")
+.then(r=>r.json())
+.then(data=>{
+
+drawnItems.clearLayers();
+
+if(data.length>2){
+
+let poly =
+L.polygon(data,{
+color:"green",
+fillOpacity:0.08
+});
+
+drawnItems.addLayer(poly);
+
+}
+
 });
 
 }
 
-//========================
-// RAY CASTING
-//========================
-function pointInPolygon(point, vs){
-
-let x = point[0], y = point[1];
-let inside = false;
-
-for (let i=0,j=vs.length-1;i<vs.length;j=i++) {
-
-let xi = vs[i].lat, yi = vs[i].lng;
-let xj = vs[j].lat, yj = vs[j].lng;
-
-let intersect =
-((yi > y) != (yj > y))
-&&
-(x < (xj - xi) * (y - yi) / (yj - yi) + xi);
-
-if (intersect) inside = !inside;
-}
-
-return inside;
-}
-
-//========================
-// EDITAR CERCO
-//========================
-function editarCerco(){
-
-editando = true;
-cerco = [];
-
-if(polygon) map.removeLayer(polygon);
-
-alert("Toque el mapa para marcar puntos");
-
-}
-
-//========================
-// CLICK MAPA
-//========================
-map.on('click', function(e){
-
-if(!editando) return;
-
-cerco.push({
-lat:e.latlng.lat,
-lng:e.latlng.lng
-});
-
-if(polygon) map.removeLayer(polygon);
-
-polygon = L.polygon(cerco,{
-color:"orange"
-}).addTo(map);
-
-});
-
-//========================
-// GUARDAR
-//========================
+//=====================================
+// GUARDAR CERCO
+//=====================================
 function guardarCerco(){
 
-fetch(URL + "?guardarCerco=" +
-encodeURIComponent(JSON.stringify(cerco)))
+if(drawnItems.getLayers().length==0){
+alert("No hay cerco dibujado");
+return;
+}
+
+let capa =
+drawnItems.getLayers()[0];
+
+let coords =
+capa.getLatLngs()[0];
+
+fetch(
+backend +
+"?guardarCerco=" +
+encodeURIComponent(
+JSON.stringify(coords)
+)
+)
 .then(r=>r.text())
 .then(t=>{
 
 alert("Cerco guardado");
-editando=false;
 
 });
 
 }
 
-//========================
-cargar();
+//=====================================
+// OBTENER CERCO
+//=====================================
+function obtenerCercoActual(){
+
+if(drawnItems.getLayers().length==0)
+return [];
+
+let capa =
+drawnItems.getLayers()[0];
+
+return capa.getLatLngs()[0];
+
+}
+
+//=====================================
+// RAY CASTING
+//=====================================
+function puntoDentroPoligono(point, vs){
+
+let x = point[0];
+let y = point[1];
+
+let inside = false;
+
+for(let i=0,j=vs.length-1;
+i<vs.length;
+j=i++){
+
+let xi = vs[i].lat;
+let yi = vs[i].lng;
+
+let xj = vs[j].lat;
+let yj = vs[j].lng;
+
+let intersect =
+((yi>y)!=(yj>y))
+&&
+(x <
+(xj-xi)*
+(y-yi)/
+(yj-yi)+xi);
+
+if(intersect)
+inside=!inside;
+}
+
+return inside;
+
+}
+
+//=====================================
+cargarTodo();
+
+// actualiza cada 30 seg
+setInterval(cargarTodo,30000);
 
 </script>
 
