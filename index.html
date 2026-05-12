@@ -72,7 +72,8 @@ margin-bottom:15px;
 }
 
 #mapa{
-height:520px;
+height:72vh;
+min-height:480px;
 border-radius:14px;
 margin-top:10px;
 }
@@ -95,6 +96,7 @@ button{
 background:#2563eb;
 color:white;
 cursor:pointer;
+transition:.2s;
 }
 
 button:hover{
@@ -105,6 +107,52 @@ footer{
 text-align:center;
 padding:20px;
 color:#64748b;
+}
+
+/* TOAST */
+#toast{
+position:fixed;
+bottom:25px;
+left:50%;
+transform:translateX(-50%);
+background:#16a34a;
+color:white;
+padding:14px 22px;
+border-radius:12px;
+font-size:15px;
+font-weight:bold;
+box-shadow:0 6px 20px rgba(0,0,0,.18);
+opacity:0;
+pointer-events:none;
+transition:all .4s ease;
+z-index:9999;
+}
+
+#toast.show{
+opacity:1;
+bottom:40px;
+}
+
+@media(max-width:768px){
+
+header{
+font-size:22px;
+padding:18px;
+}
+
+.card p{
+font-size:22px;
+}
+
+#mapa{
+height:68vh;
+min-height:520px;
+}
+
+button,input{
+width:100%;
+}
+
 }
 
 </style>
@@ -118,7 +166,6 @@ Collar GPS Caprino
 
 <div class="container">
 
-<!-- TARJETAS -->
 <div class="cards">
 
 <div class="card">
@@ -143,7 +190,6 @@ Collar GPS Caprino
 
 </div>
 
-<!-- MAPA -->
 <div class="section">
 
 <h2>Mapa Historial y Cerco</h2>
@@ -152,7 +198,9 @@ Collar GPS Caprino
 
 <input type="date" id="fecha">
 
-<button onclick="cargarTodo()">Actualizar</button>
+<button onclick="cargarTodo()">
+Actualizar
+</button>
 
 <button onclick="activarEdicion()">
 Editar cerco
@@ -160,7 +208,6 @@ Editar cerco
 
 <button onclick="guardarCerco()">
 Guardar cerco
-  
 </button>
 
 </div>
@@ -175,11 +222,17 @@ Guardar cerco
 Proyecto Final de Carrera - Ingeniería Electrónica
 </footer>
 
+<!-- TOAST -->
+<div id="toast">✅ Cerco guardado correctamente</div>
+
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
 
 <script>
 
+//=====================================
+// URL APPS SCRIPT
+//=====================================
 const backend =
 "https://script.google.com/macros/s/AKfycbz-hSedZsjYrdjzfInutmnBZA3tNpvvfniwAhxdDQohvm_7EM7Av2cXGICDAXIOOWcB/exec";
 
@@ -216,7 +269,9 @@ circle:false,
 marker:false,
 circlemarker:false
 },
-edit:{ featureGroup: drawnItems }
+edit:{
+featureGroup:drawnItems
+}
 });
 
 //=====================================
@@ -230,7 +285,22 @@ drawnItems.addLayer(e.layer);
 });
 
 //=====================================
-// LOCAL CERCO
+// TOAST
+//=====================================
+function mostrarToast(){
+
+let t = document.getElementById("toast");
+
+t.classList.add("show");
+
+setTimeout(()=>{
+t.classList.remove("show");
+},2200);
+
+}
+
+//=====================================
+// CARGAR CERCO LOCAL
 //=====================================
 function cargarCercoLocal(){
 
@@ -244,7 +314,8 @@ drawnItems.clearLayers();
 
 let poly = L.polygon(data,{
 color:"green",
-fillOpacity:0.08
+fillOpacity:0.08,
+weight:3
 });
 
 drawnItems.addLayer(poly);
@@ -259,6 +330,7 @@ drawnItems.addLayer(poly);
 function activarEdicion(){
 
 mapa.addControl(drawControl);
+
 alert("Dibuje el nuevo perímetro");
 
 }
@@ -320,7 +392,8 @@ puntoDentroPoligono(
 obtenerCercoActual()
 );
 
-let color = adentro ? "blue" : "red";
+let color =
+adentro ? "blue" : "red";
 
 L.circleMarker(
 [p.lat,p.lng],
@@ -328,8 +401,7 @@ L.circleMarker(
 radius:6,
 color:color,
 fillOpacity:1
-}
-).addTo(historialLayer);
+}).addTo(historialLayer);
 
 });
 
@@ -345,7 +417,7 @@ opacity:0.6
 }
 
 //=====================================
-// LEER CERCO BACKEND
+// LEER CERCO
 //=====================================
 function cargarCerco(){
 
@@ -353,7 +425,7 @@ fetch(backend + "?leerCerco=1")
 .then(r=>r.json())
 .then(data=>{
 
-if(data.length>2){
+if(data.length > 2){
 
 localStorage.setItem(
 "cerco",
@@ -364,7 +436,8 @@ drawnItems.clearLayers();
 
 let poly = L.polygon(data,{
 color:"green",
-fillOpacity:0.08
+fillOpacity:0.08,
+weight:3
 });
 
 drawnItems.addLayer(poly);
@@ -386,7 +459,7 @@ cargarCercoLocal();
 function guardarCerco(){
 
 if(drawnItems.getLayers().length==0){
-alert("No hay cerco");
+alert("No hay cerco dibujado");
 return;
 }
 
@@ -408,13 +481,11 @@ p.lng.toFixed(6) +
 
 });
 
-// guardar local
 localStorage.setItem(
 "cerco",
 JSON.stringify(coords)
 );
 
-// guardar nube
 fetch(
 backend +
 "?cerco=" +
@@ -423,14 +494,14 @@ encodeURIComponent(texto)
 .then(r=>r.text())
 .then(t=>{
 
-alert("Cerco guardado");
+mostrarToast();
 
 });
 
 }
 
 //=====================================
-// CERCO ACTUAL
+// OBTENER CERCO
 //=====================================
 function obtenerCercoActual(){
 
@@ -448,7 +519,7 @@ return drawnItems
 //=====================================
 function puntoDentroPoligono(point, vs){
 
-if(vs.length<3) return true;
+if(vs.length < 3) return true;
 
 let x = point[0];
 let y = point[1];
@@ -466,7 +537,8 @@ let intersect =
 ((yi>y)!=(yj>y)) &&
 (x < (xj-xi)*(y-yi)/(yj-yi)+xi);
 
-if(intersect) inside=!inside;
+if(intersect)
+inside = !inside;
 
 }
 
@@ -474,6 +546,8 @@ return inside;
 
 }
 
+//=====================================
+// INICIO
 //=====================================
 cargarCercoLocal();
 cargarTodo();
