@@ -3,47 +3,75 @@
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+<link rel="stylesheet"
+href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 
 <style>
+
 body{
-font-family:Arial;
 margin:0;
-padding:0;
+font-family:Arial;
+background:#f5f5f5;
 }
 
-#map{
-height:75vh;
-width:100%;
-}
-
-.panel{
+.top{
 padding:10px;
-background:#f2f2f2;
+display:grid;
+grid-template-columns:1fr 1fr;
+gap:8px;
+}
+
+.card{
+background:white;
+padding:12px;
+border-radius:12px;
+box-shadow:0 2px 6px rgba(0,0,0,.15);
+font-size:15px;
+}
+
+.controls{
+padding:10px;
+display:flex;
+gap:8px;
+flex-wrap:wrap;
 }
 
 button,input{
-padding:8px;
-margin:4px;
-font-size:16px;
+padding:10px;
+font-size:15px;
+border:none;
+border-radius:8px;
 }
+
+button{
+background:#1e88e5;
+color:white;
+}
+
+#map{
+height:65vh;
+width:100%;
+}
+
 </style>
 </head>
 
 <body>
 
-<div class="panel">
+<div class="top">
 
+<div class="card" id="bat">🔋 Batería: --%</div>
+<div class="card" id="ult">📶 Última conexión: --</div>
+<div class="card" id="cru">🚨 Cruces: --</div>
+<div class="card" id="dis">📏 Distancia: -- m</div>
+
+</div>
+
+<div class="controls">
 <input type="date" id="fecha">
-
-<button onclick="cargarTodo()">Ver Día</button>
-
-<button onclick="modoEditar()">Editar Cerco</button>
-
+<button onclick="cargar()">Actualizar</button>
+<button onclick="editarCerco()">Editar Cerco</button>
 <button onclick="guardarCerco()">Guardar Cerco</button>
-
-<span id="info"></span>
-
 </div>
 
 <div id="map"></div>
@@ -52,119 +80,180 @@ font-size:16px;
 
 <script>
 
-const URL = "https://script.google.com/macros/s/AKfycbzBW9V9DH_kya5vv0Lc1fCCSd6MDfmQsqRgWRz7Z-a0wP_4XID7WgIXk_Xzfz6xsgzO/exec";
+const URL =
+"https://script.google.com/macros/s/AKfycbyKu3ximhGQtsDZlGxzlZX9xx9cuVEXfyNcQGUpERbJa_cPtsI9yeEY54DXAadzSqc/exec";
 
-let map = L.map('map').setView([-27.48,-58.83],15);
+let map = L.map('map').setView([-27.48,-58.83],16);
 
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-maxZoom:19
-}).addTo(map);
+L.tileLayer(
+'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+{maxZoom:19}
+).addTo(map);
 
 let polygon;
-let puntosCerco = [];
+let cerco = [];
 let markers = [];
 let editando = false;
 
-//==================
-function cargarTodo(){
+//========================
+// FECHA HOY
+//========================
+document.getElementById("fecha").value =
+new Date().toISOString().split("T")[0];
+
+//========================
+// CARGAR TODO
+//========================
+function cargar(){
 cargarCerco();
-cargarHistorial();
+cargarPanel();
 }
 
-//==================
+//========================
+// CARGAR CERCO
+//========================
 function cargarCerco(){
 
 fetch(URL + "?leerCerco=1")
 .then(r=>r.json())
 .then(data=>{
 
-puntosCerco = data;
+cerco = data;
 
 if(polygon) map.removeLayer(polygon);
 
-polygon = L.polygon(puntosCerco,{
-color:'green',
-fillOpacity:0.1
+polygon = L.polygon(cerco,{
+color:"green",
+fillOpacity:0.08
 }).addTo(map);
 
 });
+
 }
 
-//==================
-function cargarHistorial(){
+//========================
+// PANEL + HISTORIAL
+//========================
+function cargarPanel(){
 
 markers.forEach(m=>map.removeLayer(m));
 markers=[];
 
 let fecha = document.getElementById("fecha").value;
 
-fetch(URL + "?historial=" + fecha)
+fetch(URL + "?panel=" + fecha)
 .then(r=>r.json())
 .then(data=>{
 
-let salidas = 0;
+document.getElementById("bat").innerHTML =
+"🔋 Batería: " + data.bateria + "%";
 
-data.forEach(p=>{
+document.getElementById("ult").innerHTML =
+"📶 Última conexión: " + data.ultima;
 
-let color = (p.estado=="Fuera") ? "red" : "blue";
+document.getElementById("cru").innerHTML =
+"🚨 Cruces: " + data.cruces;
 
-if(p.estado=="Fuera") salidas++;
+document.getElementById("dis").innerHTML =
+"📏 Distancia: " + data.distancia + " m";
 
-let marker = L.circleMarker([p.lat,p.lng],{
+if(data.historial.length>0){
+
+let ultimo =
+data.historial[data.historial.length-1];
+
+map.setView([ultimo.lat, ultimo.lng],17);
+
+data.historial.forEach(p=>{
+
+let adentro =
+pointInPolygon([p.lat,p.lng],cerco);
+
+let color = adentro ? "blue" : "red";
+
+let mk = L.circleMarker(
+[p.lat,p.lng],
+{
 radius:6,
 color:color,
 fillOpacity:1
 }).addTo(map);
 
-marker.bindPopup(
-"Hora: "+p.hora+
-"<br>Batería: "+p.bateria+"%"
-);
-
-markers.push(marker);
+markers.push(mk);
 
 });
 
-document.getElementById("info").innerHTML =
-"Salidas: " + salidas;
-
-});
 }
 
-//==================
-function modoEditar(){
+});
 
-editando=true;
-puntosCerco=[];
+}
+
+//========================
+// RAY CASTING
+//========================
+function pointInPolygon(point, vs){
+
+let x = point[0], y = point[1];
+let inside = false;
+
+for (let i=0,j=vs.length-1;i<vs.length;j=i++) {
+
+let xi = vs[i].lat, yi = vs[i].lng;
+let xj = vs[j].lat, yj = vs[j].lng;
+
+let intersect =
+((yi > y) != (yj > y))
+&&
+(x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+
+if (intersect) inside = !inside;
+}
+
+return inside;
+}
+
+//========================
+// EDITAR CERCO
+//========================
+function editarCerco(){
+
+editando = true;
+cerco = [];
 
 if(polygon) map.removeLayer(polygon);
 
-alert("Toque el mapa para crear puntos");
+alert("Toque el mapa para marcar puntos");
+
 }
 
-//==================
-map.on('click',function(e){
+//========================
+// CLICK MAPA
+//========================
+map.on('click', function(e){
 
 if(!editando) return;
 
-puntosCerco.push({
+cerco.push({
 lat:e.latlng.lat,
 lng:e.latlng.lng
 });
 
 if(polygon) map.removeLayer(polygon);
 
-polygon = L.polygon(puntosCerco,{
-color:'orange'
+polygon = L.polygon(cerco,{
+color:"orange"
 }).addTo(map);
 
 });
 
-//==================
+//========================
+// GUARDAR
+//========================
 function guardarCerco(){
 
 fetch(URL + "?guardarCerco=" +
-encodeURIComponent(JSON.stringify(puntosCerco)))
+encodeURIComponent(JSON.stringify(cerco)))
 .then(r=>r.text())
 .then(t=>{
 
@@ -175,8 +264,8 @@ editando=false;
 
 }
 
-//==================
-cargarTodo();
+//========================
+cargar();
 
 </script>
 
