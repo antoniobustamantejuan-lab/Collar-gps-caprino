@@ -422,19 +422,40 @@ opacity:0.6
 function cargarCerco(){
 
 fetch(backend + "?leerCerco=1")
-.then(r=>r.json())
-.then(data=>{
+.then(r=>r.text())
+.then(txt=>{
 
-if(data.length > 2){
+txt = txt.trim();
+
+if(txt == "") return;
+
+let puntos = [];
+
+txt.split(";").forEach(par=>{
+
+if(par != ""){
+
+let xy = par.split(",");
+
+puntos.push([
+parseFloat(xy[0]),
+parseFloat(xy[1])
+]);
+
+}
+
+});
+
+if(puntos.length > 2){
 
 localStorage.setItem(
 "cerco",
-JSON.stringify(data)
+JSON.stringify(puntos)
 );
 
 drawnItems.clearLayers();
 
-let poly = L.polygon(data,{
+let poly = L.polygon(puntos,{
 color:"green",
 fillOpacity:0.08,
 weight:3
@@ -552,7 +573,7 @@ return inside;
 cargarCercoLocal();
 cargarTodo();
 
-setInterval(cargarTodo,30000);
+setInterval(cargarPanel,30000);
 
 </script>
 
